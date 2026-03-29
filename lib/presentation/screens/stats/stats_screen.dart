@@ -4,15 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../domain/enums/work_category.dart';
 import '../../../domain/models/task_model.dart';
-import '../../providers/database_provider.dart';
-import '../../../data/local/app_database.dart';
+import '../../providers/task_providers.dart';
 import '../../widgets/glass/glass_card.dart';
 import '../../widgets/glass/glass_scaffold.dart';
 
 // 전체 업무 (카테고리 필터 없이) 가져오는 provider
 final _allTasksProvider = StreamProvider<List<TaskModel>>((ref) {
-  final db = ref.watch(databaseProvider);
-  return db.watchAllTasks().map((rows) => rows.map((r) => r.toModel()).toList());
+  final service = ref.watch(supabaseServiceProvider);
+  return service.watchAllTasks();
 });
 
 class StatsScreen extends ConsumerWidget {
