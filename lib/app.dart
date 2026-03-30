@@ -13,26 +13,25 @@ class GoSimbaGoApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateProvider);
+    final isLoggedIn = authState.whenOrNull(
+          data: (_) => Supabase.instance.client.auth.currentSession != null,
+        ) ??
+        false;
+
+    if (!isLoggedIn) {
+      return MaterialApp(
+        title: '국제처 업무관리',
+        theme: AppTheme.theme,
+        debugShowCheckedModeBanner: false,
+        home: const AuthScreen(),
+      );
+    }
 
     return MaterialApp.router(
       title: '국제처 업무관리',
       theme: AppTheme.theme,
       routerConfig: appRouter,
       debugShowCheckedModeBanner: false,
-      builder: (context, child) {
-        return authState.when(
-          data: (state) {
-            final session = Supabase.instance.client.auth.currentSession;
-            if (session == null) return const AuthScreen();
-            return child ?? const SizedBox.shrink();
-          },
-          loading: () => const Scaffold(
-            backgroundColor: Color(0xFF0D1117),
-            body: Center(child: CircularProgressIndicator(color: Color(0xFF009DC4))),
-          ),
-          error: (_, __) => const AuthScreen(),
-        );
-      },
     );
   }
 }
