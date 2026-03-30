@@ -110,11 +110,6 @@ class TaskCard extends StatelessWidget {
                         style: const TextStyle(color: AppColors.textHint, fontSize: 10)),
                   const SizedBox(width: 4),
                   StatusBadge(status: task.status),
-                  // 커스텀 태그
-                  if (task.tags.isNotEmpty) ...[
-                    const SizedBox(width: 4),
-                    ...task.tags.take(1).map((tag) => _TagChip(tag: tag)),
-                  ],
                   const Spacer(),
                   if (task.dueDate != null) ...[
                     Icon(Icons.calendar_today_outlined, size: 11, color: _dueDateColor(task.dueDate!)),

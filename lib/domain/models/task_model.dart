@@ -7,6 +7,7 @@ class TaskModel {
     this.description,
     required this.categories,
     this.subtype,
+    this.dispatchSubtype,
     required this.status,
     required this.priority,
     this.dueDate,
@@ -21,7 +22,8 @@ class TaskModel {
   final String title;
   final String? description;
   final List<WorkCategory> categories; // 복수 카테고리
-  final int? subtype;
+  final int? subtype; // AgreementSubtype.index
+  final int? dispatchSubtype; // DispatchSubtype.index
   final TaskStatus status;
   final TaskPriority priority;
   final DateTime? dueDate;
@@ -43,6 +45,7 @@ class TaskModel {
     String? description,
     List<WorkCategory>? categories,
     int? subtype,
+    int? dispatchSubtype,
     TaskStatus? status,
     TaskPriority? priority,
     DateTime? dueDate,
@@ -58,6 +61,7 @@ class TaskModel {
       description: description ?? this.description,
       categories: categories ?? this.categories,
       subtype: subtype ?? this.subtype,
+      dispatchSubtype: dispatchSubtype ?? this.dispatchSubtype,
       status: status ?? this.status,
       priority: priority ?? this.priority,
       dueDate: dueDate ?? this.dueDate,

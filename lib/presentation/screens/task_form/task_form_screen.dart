@@ -27,6 +27,7 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
 
   final Set<WorkCategory> _categories = {WorkCategory.agreementManagement};
   AgreementSubtype? _agreementSubtype;
+  DispatchSubtype? _dispatchSubtype;
   TaskStatus _status = TaskStatus.pending;
   TaskPriority _priority = TaskPriority.medium;
   DateTime? _dueDate;
@@ -55,6 +56,9 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
     if (task.subtype != null && task.hasCategory(WorkCategory.agreementManagement)) {
       _agreementSubtype = AgreementSubtype.values[task.subtype!];
     }
+    if (task.dispatchSubtype != null && task.hasCategory(WorkCategory.dispatchWork)) {
+      _dispatchSubtype = DispatchSubtype.values[task.dispatchSubtype!];
+    }
     _status = task.status;
     _priority = task.priority;
     _dueDate = task.dueDate;
@@ -78,9 +82,9 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
       final subtype = _categories.contains(WorkCategory.agreementManagement)
           ? _agreementSubtype?.index
           : null;
-
-      final tags = ref.read(tagsProvider).valueOrNull ?? [];
-      final selectedTags = tags.where((t) => _selectedTagIds.contains(t.id)).toList();
+      final dispatchSub = _categories.contains(WorkCategory.dispatchWork)
+          ? _dispatchSubtype?.index
+          : null;
 
       if (_existingTask != null) {
         await actions.updateTask(_existingTask!.copyWith(
@@ -88,24 +92,23 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
           description: _descController.text.trim().isEmpty ? null : _descController.text.trim(),
           categories: _categories.toList(),
           subtype: subtype,
+          dispatchSubtype: dispatchSub,
           status: _status,
           priority: _priority,
           dueDate: _dueDate,
           isDailyTodo: _isDailyTodo,
-          tags: selectedTags,
         ));
-        await actions.updateTaskTags(_existingTask!.id, _selectedTagIds.toList());
       } else {
         await actions.createTask(
           title: _titleController.text.trim(),
           description: _descController.text.trim().isEmpty ? null : _descController.text.trim(),
           categories: _categories.toList(),
           subtype: subtype,
+          dispatchSubtype: dispatchSub,
           status: _status,
           priority: _priority,
           dueDate: _dueDate,
           isDailyTodo: _isDailyTodo,
-          tags: selectedTags,
         );
       }
       if (mounted) context.pop();
@@ -141,9 +144,8 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
       } else {
         _categories.add(c);
       }
-      if (!_categories.contains(WorkCategory.agreementManagement)) {
-        _agreementSubtype = null;
-      }
+      if (!_categories.contains(WorkCategory.agreementManagement)) _agreementSubtype = null;
+      if (!_categories.contains(WorkCategory.dispatchWork)) _dispatchSubtype = null;
     });
   }
 
@@ -158,8 +160,6 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
 
     final isEditing = widget.taskId != null;
     final dateFormatter = DateFormat('yyyy년 MM월 dd일');
-    final allTags = ref.watch(tagsProvider).valueOrNull ?? [];
-
     return GlassScaffold(
       resizeToAvoidBottomInset: true,
       appBar: GlassAppBar(
@@ -295,67 +295,32 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
                       }).toList(),
                     ),
                   ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // 커스텀 태그
-            GlassCard(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const _FieldLabel('태그'),
-                      const Spacer(),
-                      GestureDetector(
-                        onTap: () => _showAddTagDialog(context),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.add, size: 14, color: AppColors.lightBlue),
-                            SizedBox(width: 2),
-                            Text('새 태그', style: TextStyle(color: AppColors.lightBlue, fontSize: 12)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  if (allTags.isEmpty)
-                    const Text('태그가 없습니다. "새 태그"로 추가하세요.',
-                        style: TextStyle(color: AppColors.textHint, fontSize: 12))
-                  else
+                  // 파견업무 하위분류
+                  if (_categories.contains(WorkCategory.dispatchWork)) ...[
+                    const SizedBox(height: 12),
+                    const _FieldLabel('파견 유형'),
+                    const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
                       runSpacing: 6,
-                      children: allTags.map((tag) {
-                        final isSelected = _selectedTagIds.contains(tag.id);
-                        final color = _parseColor(tag.color);
+                      children: DispatchSubtype.values.map((s) {
+                        final isSelected = _dispatchSubtype == s;
                         return GestureDetector(
-                          onTap: () => setState(() {
-                            if (isSelected) {
-                              _selectedTagIds.remove(tag.id);
-                            } else {
-                              _selectedTagIds.add(tag.id);
-                            }
-                          }),
-                          onLongPress: () => _showDeleteTagDialog(context, tag),
+                          onTap: () => setState(() => _dispatchSubtype = isSelected ? null : s),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 150),
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                             decoration: BoxDecoration(
-                              color: isSelected ? color.withValues(alpha: 0.2) : AppColors.bgElevated,
-                              borderRadius: BorderRadius.circular(16),
+                              color: isSelected ? AppColors.mediumBlue.withValues(alpha: 0.2) : AppColors.bgElevated,
+                              borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color: isSelected ? color.withValues(alpha: 0.6) : AppColors.border,
+                                color: isSelected ? AppColors.mediumBlue : AppColors.border,
+                                width: isSelected ? 1.5 : 1,
                               ),
                             ),
-                            child: Text(tag.name,
+                            child: Text(s.label,
                                 style: TextStyle(
-                                  color: isSelected ? color : AppColors.textSecondary,
+                                  color: isSelected ? AppColors.mediumBlue : AppColors.textSecondary,
                                   fontSize: 12,
                                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                                 )),
@@ -363,6 +328,7 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
                         );
                       }).toList(),
                     ),
+                  ],
                 ],
               ),
             ),
@@ -478,65 +444,6 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
     );
   }
 
-  void _showAddTagDialog(BuildContext context) {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bgElevated,
-        title: const Text('새 태그', style: TextStyle(color: AppColors.textPrimary)),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(hintText: '예: 법무팀 검토중, 총장사인 대기'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('취소', style: TextStyle(color: AppColors.textSecondary)),
-          ),
-          TextButton(
-            onPressed: () {
-              final name = controller.text.trim();
-              if (name.isNotEmpty) {
-                ref.read(taskActionsProvider).createTag(name);
-                Navigator.pop(ctx);
-              }
-            },
-            child: const Text('추가', style: TextStyle(color: AppColors.lightBlue)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showDeleteTagDialog(BuildContext context, TagModel tag) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bgElevated,
-        title: const Text('태그 삭제', style: TextStyle(color: AppColors.textPrimary)),
-        content: Text('"${tag.name}" 태그를 삭제하시겠습니까?', style: const TextStyle(color: AppColors.textSecondary)),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소', style: TextStyle(color: AppColors.textSecondary))),
-          TextButton(
-            onPressed: () {
-              ref.read(taskActionsProvider).deleteTag(tag.id);
-              _selectedTagIds.remove(tag.id);
-              Navigator.pop(ctx);
-            },
-            child: const Text('삭제', style: TextStyle(color: AppColors.priorityHigh)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Color _parseColor(String hex) {
-    final code = hex.replaceFirst('#', '');
-    return Color(int.parse('FF$code', radix: 16));
-  }
 }
 
 class _FieldLabel extends StatelessWidget {

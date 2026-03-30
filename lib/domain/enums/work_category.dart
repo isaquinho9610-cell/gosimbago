@@ -76,6 +76,21 @@ enum AgreementSubtype {
   }
 }
 
+// 파견업무 하위분류
+enum DispatchSubtype {
+  shortTerm,
+  exchange;
+
+  String get label {
+    switch (this) {
+      case DispatchSubtype.shortTerm:
+        return '단기파견';
+      case DispatchSubtype.exchange:
+        return '교환파견';
+    }
+  }
+}
+
 enum TaskStatus {
   pending,
   inProgress,

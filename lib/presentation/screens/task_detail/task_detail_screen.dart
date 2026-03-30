@@ -117,7 +117,10 @@ class _TaskDetailContent extends ConsumerWidget {
                     ...task.categories.map((c) => CategoryBadge(category: c)),
                     if (task.hasCategory(WorkCategory.agreementManagement) &&
                         task.subtype != null)
-                      _SubtypeBadge(subtype: AgreementSubtype.values[task.subtype!]),
+                      _SubtypeBadge(label: AgreementSubtype.values[task.subtype!].label, color: AppColors.lightBlue),
+                    if (task.hasCategory(WorkCategory.dispatchWork) &&
+                        task.dispatchSubtype != null)
+                      _SubtypeBadge(label: DispatchSubtype.values[task.dispatchSubtype!].label, color: AppColors.mediumBlue),
                     StatusBadge(status: task.status),
                     ...task.tags.map((tag) => _TagBadge(tag: tag)),
                   ],
@@ -487,23 +490,21 @@ class _StatusStepper extends ConsumerWidget {
 // ── Sub-widgets ───────────────────────────────────────────────────────────────
 
 class _SubtypeBadge extends StatelessWidget {
-  const _SubtypeBadge({required this.subtype});
-  final AgreementSubtype subtype;
+  const _SubtypeBadge({required this.label, required this.color});
+  final String label;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: AppColors.lightBlue.withValues(alpha: 0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.lightBlue.withValues(alpha: 0.4)),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
-      child: Text(subtype.label,
-          style: const TextStyle(
-              color: AppColors.lightBlue,
-              fontSize: 11,
-              fontWeight: FontWeight.w500)),
+      child: Text(label,
+          style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w500)),
     );
   }
 }
