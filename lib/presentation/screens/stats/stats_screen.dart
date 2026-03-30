@@ -9,9 +9,9 @@ import '../../widgets/glass/glass_card.dart';
 import '../../widgets/glass/glass_scaffold.dart';
 
 // 전체 업무 (카테고리 필터 없이) 가져오는 provider
-final _allTasksProvider = StreamProvider<List<TaskModel>>((ref) {
+final _allTasksProvider = FutureProvider<List<TaskModel>>((ref) async {
   final service = ref.watch(supabaseServiceProvider);
-  return service.watchAllTasks();
+  return service.fetchAllTasks();
 });
 
 class StatsScreen extends ConsumerWidget {

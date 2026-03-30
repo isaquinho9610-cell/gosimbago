@@ -8,6 +8,13 @@ import 'auth_provider.dart';
 
 const _uuid = Uuid();
 
+// ── Refresh trigger ──────────────────────────────────────────────────────────
+// 이 값이 바뀌면 모든 데이터를 다시 가져옴 (WebSocket 없이 안정적으로 작동)
+
+final _refreshProvider = StateProvider<int>((ref) => 0);
+void refreshData(WidgetRef ref) => ref.read(_refreshProvider.notifier).state++;
+void refreshDataFromRef(Ref ref) => ref.read(_refreshProvider.notifier).state++;
+
 // ── Supabase Service ─────────────────────────────────────────────────────────
 
 final supabaseServiceProvider = Provider<SupabaseService>((ref) {
@@ -15,62 +22,66 @@ final supabaseServiceProvider = Provider<SupabaseService>((ref) {
   return SupabaseService(client);
 });
 
-// ── Task list (reactive stream) ──────────────────────────────────────────────
+// ── Task list ────────────────────────────────────────────────────────────────
 
 final selectedCategoryProvider = StateProvider<WorkCategory?>((ref) => null);
-final selectedTagProvider = StateProvider<String?>((ref) => null); // tag id
 
-final taskListProvider = StreamProvider<List<TaskModel>>((ref) {
+final taskListProvider = FutureProvider<List<TaskModel>>((ref) async {
+  ref.watch(_refreshProvider);
   final service = ref.watch(supabaseServiceProvider);
   final category = ref.watch(selectedCategoryProvider);
-  return service.watchAllTasks(category: category);
+  return service.fetchAllTasks(category: category);
 });
 
 // ── Single task detail ───────────────────────────────────────────────────────
 
-final taskDetailProvider =
-    StreamProvider.family<TaskModel?, String>((ref, taskId) {
+final taskDetailProvider = FutureProvider.family<TaskModel?, String>((ref, taskId) async {
+  ref.watch(_refreshProvider);
   final service = ref.watch(supabaseServiceProvider);
-  return service
-      .watchAllTasks()
-      .map((tasks) => tasks.where((t) => t.id == taskId).firstOrNull);
+  final tasks = await service.fetchAllTasks();
+  return tasks.where((t) => t.id == taskId).firstOrNull;
 });
 
 // ── Checklists ───────────────────────────────────────────────────────────────
 
-final checklistProvider =
-    StreamProvider.family<List<ChecklistItem>, String>((ref, taskId) {
+final checklistProvider = FutureProvider.family<List<ChecklistItem>, String>((ref, taskId) async {
+  ref.watch(_refreshProvider);
   final service = ref.watch(supabaseServiceProvider);
-  return service.watchChecklists(taskId);
+  return service.fetchChecklists(taskId);
 });
 
 // ── Activity logs ────────────────────────────────────────────────────────────
 
-final activityLogsProvider =
-    StreamProvider.family<List<ActivityLogModel>, String>((ref, taskId) {
+final activityLogsProvider = FutureProvider.family<List<ActivityLogModel>, String>((ref, taskId) async {
+  ref.watch(_refreshProvider);
   final service = ref.watch(supabaseServiceProvider);
-  return service.watchActivityLogs(taskId);
+  return service.fetchActivityLogs(taskId);
 });
 
 // ── Tags ─────────────────────────────────────────────────────────────────────
 
-final tagsProvider = StreamProvider<List<TagModel>>((ref) {
+final tagsProvider = FutureProvider<List<TagModel>>((ref) async {
+  ref.watch(_refreshProvider);
   final service = ref.watch(supabaseServiceProvider);
-  return service.watchTags();
+  return service.fetchTags();
 });
 
 // ── Daily todo ───────────────────────────────────────────────────────────────
 
-final dailyTodoProvider = StreamProvider<List<TaskModel>>((ref) {
+final dailyTodoProvider = FutureProvider<List<TaskModel>>((ref) async {
+  ref.watch(_refreshProvider);
   final service = ref.watch(supabaseServiceProvider);
-  return service.watchDailyTodos();
+  return service.fetchDailyTodos();
 });
 
 // ── Actions ──────────────────────────────────────────────────────────────────
 
 class TaskActions {
-  const TaskActions(this._service);
+  TaskActions(this._service, this._ref);
   final SupabaseService _service;
+  final Ref _ref;
+
+  void _refresh() => refreshDataFromRef(_ref);
 
   Future<void> createTask({
     required String title,
@@ -98,10 +109,18 @@ class TaskActions {
       isDailyTodo: isDailyTodo,
       tags: tags,
     ));
+    _refresh();
   }
 
-  Future<void> updateTask(TaskModel task) => _service.updateTask(task);
-  Future<void> deleteTask(String id) => _service.deleteTask(id);
+  Future<void> updateTask(TaskModel task) async {
+    await _service.updateTask(task);
+    _refresh();
+  }
+
+  Future<void> deleteTask(String id) async {
+    await _service.deleteTask(id);
+    _refresh();
+  }
 
   Future<void> advanceStatus(TaskModel task) async {
     final nextStatus = switch (task.status) {
@@ -119,30 +138,49 @@ class TaskActions {
       updateTask(task.copyWith(isDailyTodo: !task.isDailyTodo));
 
   // Tags
-  Future<void> createTag(String name, {String color = '#009DC4'}) =>
-      _service.insertTag(id: _uuid.v4(), name: name, color: color);
+  Future<void> createTag(String name, {String color = '#009DC4'}) async {
+    await _service.insertTag(id: _uuid.v4(), name: name, color: color);
+    _refresh();
+  }
 
-  Future<void> deleteTag(String id) => _service.deleteTag(id);
+  Future<void> deleteTag(String id) async {
+    await _service.deleteTag(id);
+    _refresh();
+  }
 
-  Future<void> updateTaskTags(String taskId, List<String> tagIds) =>
-      _service.updateTaskTags(taskId, tagIds);
+  Future<void> updateTaskTags(String taskId, List<String> tagIds) async {
+    await _service.updateTaskTags(taskId, tagIds);
+    _refresh();
+  }
 
   // Checklists
-  Future<void> addChecklistItem({required String taskId, required String content}) =>
-      _service.insertChecklist(id: _uuid.v4(), taskId: taskId, content: content);
+  Future<void> addChecklistItem({required String taskId, required String content}) async {
+    await _service.insertChecklist(id: _uuid.v4(), taskId: taskId, content: content);
+    _refresh();
+  }
 
-  Future<void> toggleChecklistItem(String id, bool isDone) =>
-      _service.toggleChecklist(id, isDone);
+  Future<void> toggleChecklistItem(String id, bool isDone) async {
+    await _service.toggleChecklist(id, isDone);
+    _refresh();
+  }
 
-  Future<void> deleteChecklistItem(String id) => _service.deleteChecklist(id);
+  Future<void> deleteChecklistItem(String id) async {
+    await _service.deleteChecklist(id);
+    _refresh();
+  }
 
   // Activity logs
-  Future<void> addActivityLog({required String taskId, required String content}) =>
-      _service.insertActivityLog(id: _uuid.v4(), taskId: taskId, content: content);
+  Future<void> addActivityLog({required String taskId, required String content}) async {
+    await _service.insertActivityLog(id: _uuid.v4(), taskId: taskId, content: content);
+    _refresh();
+  }
 
-  Future<void> deleteActivityLog(String id) => _service.deleteActivityLog(id);
+  Future<void> deleteActivityLog(String id) async {
+    await _service.deleteActivityLog(id);
+    _refresh();
+  }
 }
 
 final taskActionsProvider = Provider<TaskActions>((ref) {
-  return TaskActions(ref.watch(supabaseServiceProvider));
+  return TaskActions(ref.watch(supabaseServiceProvider), ref);
 });
