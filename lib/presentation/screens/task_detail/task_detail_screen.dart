@@ -51,12 +51,13 @@ class _TaskDetailContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final logsAsync = ref.watch(activityLogsProvider(task.id));
+    final checklistAsync = ref.watch(checklistProvider(task.id));
     final actions = ref.read(taskActionsProvider);
     final dateFormatter = DateFormat('yyyy년 MM월 dd일');
 
     return GlassScaffold(
       appBar: GlassAppBar(
-        title: task.category.label,
+        title: task.categories.map((c) => c.label).join(' · '),
         actions: [
           IconButton(
             icon: Icon(
@@ -109,17 +110,21 @@ class _TaskDetailContent extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    ...task.categories.map((c) => CategoryBadge(category: c)),
+                    if (task.hasCategory(WorkCategory.agreementManagement) &&
+                        task.subtype != null)
+                      _SubtypeBadge(subtype: AgreementSubtype.values[task.subtype!]),
+                    StatusBadge(status: task.status),
+                    ...task.tags.map((tag) => _TagBadge(tag: tag)),
+                  ],
+                ),
+                const SizedBox(height: 4),
                 Row(
                   children: [
-                    CategoryBadge(category: task.category),
-                    const SizedBox(width: 8),
-                    // 협약관리 하위분류
-                    if (task.category == WorkCategory.agreementManagement &&
-                        task.subtype != null) ...[
-                      _SubtypeBadge(subtype: AgreementSubtype.values[task.subtype!]),
-                      const SizedBox(width: 8),
-                    ],
-                    StatusBadge(status: task.status),
                     const Spacer(),
                     _PriorityDot(priority: task.priority),
                   ],
@@ -172,6 +177,51 @@ class _TaskDetailContent extends ConsumerWidget {
                 ],
               ),
             ),
+
+          // ── Checklist ──
+          GlassCard(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  const Icon(Icons.checklist, color: AppColors.lightBlue, size: 16),
+                  const SizedBox(width: 8),
+                  const Text('체크리스트',
+                      style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+                  const Spacer(),
+                  // 진행률
+                  checklistAsync.when(
+                    data: (items) {
+                      if (items.isEmpty) return const SizedBox.shrink();
+                      final done = items.where((i) => i.isDone).length;
+                      return Text('$done/${items.length}',
+                          style: const TextStyle(color: AppColors.lightBlue, fontSize: 12, fontWeight: FontWeight.w600));
+                    },
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, __) => const SizedBox.shrink(),
+                  ),
+                ]),
+                const SizedBox(height: 12),
+                _ChecklistInput(taskId: task.id),
+                const SizedBox(height: 8),
+                checklistAsync.when(
+                  data: (items) => items.isEmpty
+                      ? const Text('체크리스트 항목을 추가하세요',
+                          style: TextStyle(color: AppColors.textHint, fontSize: 13))
+                      : Column(
+                          children: items.map((item) => _ChecklistRow(
+                                item: item,
+                                onToggle: () => actions.toggleChecklistItem(item.id, !item.isDone),
+                                onDelete: () => actions.deleteChecklistItem(item.id),
+                              )).toList(),
+                        ),
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
+                ),
+              ],
+            ),
+          ),
 
           // ── Daily Todo Toggle ──
           GlassCard(
@@ -476,5 +526,148 @@ class _PriorityDot extends StatelessWidget {
               fontSize: 12,
               fontWeight: FontWeight.w500)),
     ]);
+  }
+}
+
+class _TagBadge extends StatelessWidget {
+  const _TagBadge({required this.tag});
+  final TagModel tag;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _parseColor(tag.color);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Text(tag.name,
+          style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w500)),
+    );
+  }
+
+  Color _parseColor(String hex) {
+    final code = hex.replaceFirst('#', '');
+    return Color(int.parse('FF$code', radix: 16));
+  }
+}
+
+// ── Checklist Input ───────────────────────────────────────────────────────────
+
+class _ChecklistInput extends ConsumerStatefulWidget {
+  const _ChecklistInput({required this.taskId});
+  final String taskId;
+
+  @override
+  ConsumerState<_ChecklistInput> createState() => _ChecklistInputState();
+}
+
+class _ChecklistInputState extends ConsumerState<_ChecklistInput> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
+    ref.read(taskActionsProvider).addChecklistItem(taskId: widget.taskId, content: text);
+    _controller.clear();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _controller,
+            style: const TextStyle(color: Colors.white, fontSize: 13),
+            decoration: const InputDecoration(
+              hintText: '체크리스트 항목 추가...',
+              hintStyle: TextStyle(color: AppColors.textHint, fontSize: 13),
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              isDense: true,
+            ),
+            onSubmitted: (_) => _submit(),
+          ),
+        ),
+        const SizedBox(width: 8),
+        GestureDetector(
+          onTap: _submit,
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.mediumBlue.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.add, color: Colors.white, size: 16),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Checklist Row ─────────────────────────────────────────────────────────────
+
+class _ChecklistRow extends StatelessWidget {
+  const _ChecklistRow({required this.item, required this.onToggle, required this.onDelete});
+  final ChecklistItem item;
+  final VoidCallback onToggle;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: onToggle,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(4),
+                color: item.isDone ? AppColors.statusCompleted.withValues(alpha: 0.3) : Colors.transparent,
+                border: Border.all(
+                  color: item.isDone ? AppColors.statusCompleted : AppColors.border,
+                  width: 1.5,
+                ),
+              ),
+              child: item.isDone
+                  ? const Icon(Icons.check, size: 14, color: AppColors.statusCompleted)
+                  : null,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              item.content,
+              style: TextStyle(
+                color: item.isDone ? AppColors.textHint : AppColors.textPrimary,
+                fontSize: 13,
+                decoration: item.isDone ? TextDecoration.lineThrough : null,
+                decorationColor: AppColors.textHint,
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: onDelete,
+            child: const Padding(
+              padding: EdgeInsets.only(left: 8),
+              child: Icon(Icons.close, size: 14, color: AppColors.textHint),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

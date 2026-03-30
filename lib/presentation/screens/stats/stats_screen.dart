@@ -146,7 +146,7 @@ class _CategoryBreakdown extends StatelessWidget {
   Widget build(BuildContext context) {
     final total = tasks.length;
     final categoryData = WorkCategory.values.map((c) {
-      final count = tasks.where((t) => t.category == c).length;
+      final count = tasks.where((t) => t.hasCategory(c)).length;
       return (category: c, count: count, ratio: total > 0 ? count / total : 0.0);
     }).toList()
       ..sort((a, b) => b.count.compareTo(a.count));
@@ -186,7 +186,7 @@ class _AgreementSubtypeBreakdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final agreementTasks = tasks.where((t) => t.category == WorkCategory.agreementManagement).toList();
+    final agreementTasks = tasks.where((t) => t.hasCategory(WorkCategory.agreementManagement)).toList();
     if (agreementTasks.isEmpty) return const SizedBox.shrink();
 
     final total = agreementTasks.length;

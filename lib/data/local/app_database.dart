@@ -114,7 +114,7 @@ extension TaskMapper on Task {
         id: id,
         title: title,
         description: description,
-        category: WorkCategory.values[category],
+        categories: [WorkCategory.values[category]],
         subtype: subtype,
         status: TaskStatus.values[status],
         priority: TaskPriority.values[priority],

@@ -134,7 +134,7 @@ class _TodoItem extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  CategoryBadge(category: task.category, small: true),
+                  CategoryBadge(category: task.primaryCategory, small: true),
                 ],
               ),
             ),

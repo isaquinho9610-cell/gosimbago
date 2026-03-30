@@ -25,13 +25,14 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
   final _titleController = TextEditingController();
   final _descController = TextEditingController();
 
-  WorkCategory _category = WorkCategory.agreementManagement;
+  final Set<WorkCategory> _categories = {WorkCategory.agreementManagement};
   AgreementSubtype? _agreementSubtype;
   TaskStatus _status = TaskStatus.pending;
   TaskPriority _priority = TaskPriority.medium;
   DateTime? _dueDate;
   bool _isDailyTodo = false;
   bool _isLoading = false;
+  final Set<String> _selectedTagIds = {};
 
   TaskModel? _existingTask;
   bool _initialized = false;
@@ -49,48 +50,62 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
     _existingTask = task;
     _titleController.text = task.title;
     _descController.text = task.description ?? '';
-    _category = task.category;
-    if (task.subtype != null && task.category == WorkCategory.agreementManagement) {
+    _categories.clear();
+    _categories.addAll(task.categories);
+    if (task.subtype != null && task.hasCategory(WorkCategory.agreementManagement)) {
       _agreementSubtype = AgreementSubtype.values[task.subtype!];
     }
     _status = task.status;
     _priority = task.priority;
     _dueDate = task.dueDate;
     _isDailyTodo = task.isDailyTodo;
+    _selectedTagIds.addAll(task.tags.map((t) => t.id));
   }
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_categories.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('카테고리를 하나 이상 선택하세요'), backgroundColor: AppColors.priorityHigh),
+      );
+      return;
+    }
     setState(() => _isLoading = true);
 
     final actions = ref.read(taskActionsProvider);
 
     try {
-      final subtype = _category == WorkCategory.agreementManagement
+      final subtype = _categories.contains(WorkCategory.agreementManagement)
           ? _agreementSubtype?.index
           : null;
+
+      final tags = ref.read(tagsProvider).valueOrNull ?? [];
+      final selectedTags = tags.where((t) => _selectedTagIds.contains(t.id)).toList();
 
       if (_existingTask != null) {
         await actions.updateTask(_existingTask!.copyWith(
           title: _titleController.text.trim(),
           description: _descController.text.trim().isEmpty ? null : _descController.text.trim(),
-          category: _category,
+          categories: _categories.toList(),
           subtype: subtype,
           status: _status,
           priority: _priority,
           dueDate: _dueDate,
           isDailyTodo: _isDailyTodo,
+          tags: selectedTags,
         ));
+        await actions.updateTaskTags(_existingTask!.id, _selectedTagIds.toList());
       } else {
         await actions.createTask(
           title: _titleController.text.trim(),
           description: _descController.text.trim().isEmpty ? null : _descController.text.trim(),
-          category: _category,
+          categories: _categories.toList(),
           subtype: subtype,
           status: _status,
           priority: _priority,
           dueDate: _dueDate,
           isDailyTodo: _isDailyTodo,
+          tags: selectedTags,
         );
       }
       if (mounted) context.pop();
@@ -110,7 +125,7 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
           colorScheme: const ColorScheme.dark(
             primary: AppColors.mediumBlue,
             onPrimary: Colors.white,
-            surface: Color(0xFF005A80),
+            surface: Color(0xFF1C2128),
           ),
         ),
         child: child!,
@@ -119,9 +134,21 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
     if (picked != null) setState(() => _dueDate = picked);
   }
 
+  void _toggleCategory(WorkCategory c) {
+    setState(() {
+      if (_categories.contains(c)) {
+        if (_categories.length > 1) _categories.remove(c);
+      } else {
+        _categories.add(c);
+      }
+      if (!_categories.contains(WorkCategory.agreementManagement)) {
+        _agreementSubtype = null;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Load existing task if editing
     if (widget.taskId != null && !_initialized) {
       final taskAsync = ref.watch(taskDetailProvider(widget.taskId!));
       taskAsync.whenData((task) {
@@ -131,6 +158,7 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
 
     final isEditing = widget.taskId != null;
     final dateFormatter = DateFormat('yyyy년 MM월 dd일');
+    final allTags = ref.watch(tagsProvider).valueOrNull ?? [];
 
     return GlassScaffold(
       resizeToAvoidBottomInset: true,
@@ -185,48 +213,48 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
             ),
             const SizedBox(height: 12),
 
-            // Category
+            // Category (복수선택)
             GlassCard(
               padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const _FieldLabel(AppStrings.fieldCategory),
+                  const _FieldLabel('업무 분류 (복수선택 가능)'),
                   const SizedBox(height: 10),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
                     children: WorkCategory.values.map((c) {
-                      final isSelected = _category == c;
+                      final isSelected = _categories.contains(c);
                       return GestureDetector(
-                        onTap: () => setState(() {
-                          _category = c;
-                          if (c != WorkCategory.agreementManagement) _agreementSubtype = null;
-                        }),
+                        onTap: () => _toggleCategory(c),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 150),
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           decoration: BoxDecoration(
-                            color: isSelected ? c.color.withValues(alpha: 0.3) : AppColors.glassWhite,
+                            color: isSelected ? c.color.withValues(alpha: 0.2) : AppColors.bgElevated,
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: isSelected ? c.color : AppColors.glassBorder,
+                              color: isSelected ? c.color.withValues(alpha: 0.6) : AppColors.border,
                               width: isSelected ? 1.5 : 1,
                             ),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
+                              if (isSelected)
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 4),
+                                  child: Icon(Icons.check_circle, size: 14, color: c.color),
+                                ),
                               Icon(c.icon, size: 14, color: isSelected ? c.color : AppColors.textSecondary),
                               const SizedBox(width: 6),
-                              Text(
-                                c.label,
-                                style: TextStyle(
-                                  color: isSelected ? c.color : AppColors.textSecondary,
-                                  fontSize: 12,
-                                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                                ),
-                              ),
+                              Text(c.label,
+                                  style: TextStyle(
+                                    color: isSelected ? c.color : AppColors.textSecondary,
+                                    fontSize: 12,
+                                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                  )),
                             ],
                           ),
                         ),
@@ -234,7 +262,7 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
                     }).toList(),
                   ),
                   // 협약관리 하위분류
-                  if (_category == WorkCategory.agreementManagement) ...[
+                  if (_categories.contains(WorkCategory.agreementManagement)) ...[
                     const SizedBox(height: 12),
                     const _FieldLabel('협약 유형'),
                     const SizedBox(height: 8),
@@ -249,28 +277,92 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
                             duration: const Duration(milliseconds: 150),
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                             decoration: BoxDecoration(
-                              color: isSelected
-                                  ? AppColors.lightBlue.withValues(alpha: 0.25)
-                                  : AppColors.glassWhite,
+                              color: isSelected ? AppColors.lightBlue.withValues(alpha: 0.2) : AppColors.bgElevated,
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color: isSelected ? AppColors.lightBlue : AppColors.glassBorder,
+                                color: isSelected ? AppColors.lightBlue : AppColors.border,
                                 width: isSelected ? 1.5 : 1,
                               ),
                             ),
-                            child: Text(
-                              s.label,
-                              style: TextStyle(
-                                color: isSelected ? AppColors.lightBlue : AppColors.textSecondary,
-                                fontSize: 12,
-                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                              ),
-                            ),
+                            child: Text(s.label,
+                                style: TextStyle(
+                                  color: isSelected ? AppColors.lightBlue : AppColors.textSecondary,
+                                  fontSize: 12,
+                                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                )),
                           ),
                         );
                       }).toList(),
                     ),
                   ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // 커스텀 태그
+            GlassCard(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const _FieldLabel('태그'),
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: () => _showAddTagDialog(context),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.add, size: 14, color: AppColors.lightBlue),
+                            SizedBox(width: 2),
+                            Text('새 태그', style: TextStyle(color: AppColors.lightBlue, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (allTags.isEmpty)
+                    const Text('태그가 없습니다. "새 태그"로 추가하세요.',
+                        style: TextStyle(color: AppColors.textHint, fontSize: 12))
+                  else
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: allTags.map((tag) {
+                        final isSelected = _selectedTagIds.contains(tag.id);
+                        final color = _parseColor(tag.color);
+                        return GestureDetector(
+                          onTap: () => setState(() {
+                            if (isSelected) {
+                              _selectedTagIds.remove(tag.id);
+                            } else {
+                              _selectedTagIds.add(tag.id);
+                            }
+                          }),
+                          onLongPress: () => _showDeleteTagDialog(context, tag),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: isSelected ? color.withValues(alpha: 0.2) : AppColors.bgElevated,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: isSelected ? color.withValues(alpha: 0.6) : AppColors.border,
+                              ),
+                            ),
+                            child: Text(tag.name,
+                                style: TextStyle(
+                                  color: isSelected ? color : AppColors.textSecondary,
+                                  fontSize: 12,
+                                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                )),
+                          ),
+                        );
+                      }).toList(),
+                    ),
                 ],
               ),
             ),
@@ -363,9 +455,7 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
                 children: [
                   const Icon(Icons.check_circle_outline, color: AppColors.lightBlue, size: 20),
                   const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(AppStrings.fieldAddToDailyTodo, style: TextStyle(color: AppColors.textPrimary)),
-                  ),
+                  const Expanded(child: Text(AppStrings.fieldAddToDailyTodo, style: TextStyle(color: AppColors.textPrimary))),
                   Switch(
                     value: _isDailyTodo,
                     onChanged: (v) => setState(() => _isDailyTodo = v),
@@ -386,6 +476,66 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
         ),
       ),
     );
+  }
+
+  void _showAddTagDialog(BuildContext context) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bgElevated,
+        title: const Text('새 태그', style: TextStyle(color: AppColors.textPrimary)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(hintText: '예: 법무팀 검토중, 총장사인 대기'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('취소', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () {
+              final name = controller.text.trim();
+              if (name.isNotEmpty) {
+                ref.read(taskActionsProvider).createTag(name);
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text('추가', style: TextStyle(color: AppColors.lightBlue)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteTagDialog(BuildContext context, TagModel tag) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bgElevated,
+        title: const Text('태그 삭제', style: TextStyle(color: AppColors.textPrimary)),
+        content: Text('"${tag.name}" 태그를 삭제하시겠습니까?', style: const TextStyle(color: AppColors.textSecondary)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소', style: TextStyle(color: AppColors.textSecondary))),
+          TextButton(
+            onPressed: () {
+              ref.read(taskActionsProvider).deleteTag(tag.id);
+              _selectedTagIds.remove(tag.id);
+              Navigator.pop(ctx);
+            },
+            child: const Text('삭제', style: TextStyle(color: AppColors.priorityHigh)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _parseColor(String hex) {
+    final code = hex.replaceFirst('#', '');
+    return Color(int.parse('FF$code', radix: 16));
   }
 }
 
@@ -420,7 +570,7 @@ class _RadioOption extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: isSelected ? color.withValues(alpha: 0.3) : Colors.transparent,
-                border: Border.all(color: isSelected ? color : AppColors.glassBorder, width: isSelected ? 2 : 1),
+                border: Border.all(color: isSelected ? color : AppColors.border, width: isSelected ? 2 : 1),
               ),
               child: isSelected ? Center(child: Container(width: 6, height: 6, decoration: BoxDecoration(color: color, shape: BoxShape.circle))) : null,
             ),
