@@ -31,11 +31,11 @@ enum WorkCategory {
       case WorkCategory.dispatchWork:
         return AppColors.mediumBlue;
       case WorkCategory.protocol:
-        return AppColors.darkBlue;
+        return const Color(0xFFA78BFA); // 보라
       case WorkCategory.otherWork:
-        return const Color(0xFF4A9BBF);
+        return const Color(0xFF7DD3C0); // 민트
       case WorkCategory.projectWork:
-        return const Color(0xFF2E7FA8);
+        return const Color(0xFFF0A85E); // 오렌지
     }
   }
 
