@@ -432,7 +432,10 @@ class _StatusStepper extends ConsumerWidget {
         return Expanded(
           child: GestureDetector(
             onTap: task.status != status
-                ? () => actions.updateTask(task.copyWith(status: status))
+                ? () {
+                    final completedAt = status == TaskStatus.completed ? DateTime.now() : null;
+                    actions.updateTask(task.copyWith(status: status, completedAt: completedAt));
+                  }
                 : null,
             child: Column(
               children: [
