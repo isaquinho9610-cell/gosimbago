@@ -414,22 +414,6 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
             ),
             const SizedBox(height: 12),
 
-            // Daily todo toggle
-            GlassCard(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              child: Row(
-                children: [
-                  const Icon(Icons.check_circle_outline, color: AppColors.lightBlue, size: 20),
-                  const SizedBox(width: 12),
-                  const Expanded(child: Text(AppStrings.fieldAddToDailyTodo, style: TextStyle(color: AppColors.textPrimary))),
-                  Switch(
-                    value: _isDailyTodo,
-                    onChanged: (v) => setState(() => _isDailyTodo = v),
-                    activeThumbColor: AppColors.lightBlue,
-                  ),
-                ],
-              ),
-            ),
             const SizedBox(height: 24),
 
             // Save button
