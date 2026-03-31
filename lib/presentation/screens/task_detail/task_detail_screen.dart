@@ -418,74 +418,90 @@ class _StatusStepper extends ConsumerWidget {
   const _StatusStepper({required this.task});
   final TaskModel task;
 
+  static const _accentColor = AppColors.mediumBlue;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final actions = ref.read(taskActionsProvider);
-    final statuses = TaskStatus.values;
+    final currentIndex = task.status.index;
 
-    return Row(
-      children: statuses.asMap().entries.map((e) {
-        final status = e.value;
-        final isCurrent = task.status == status;
-        final isPast = e.key < task.status.index;
-
-        return Expanded(
-          child: GestureDetector(
-            onTap: task.status != status
-                ? () {
-                    final completedAt = status == TaskStatus.completed ? DateTime.now() : null;
-                    actions.updateTask(task.copyWith(status: status, completedAt: completedAt));
-                  }
-                : null,
-            child: Column(
-              children: [
-                Row(children: [
-                  if (e.key > 0)
-                    Expanded(
-                        child: Container(
-                            height: 2,
-                            color: isPast ? status.color : AppColors.glassBorder)),
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: isCurrent || isPast
-                          ? status.color.withValues(alpha: 0.3)
-                          : Colors.transparent,
-                      border: Border.all(
-                        color: isCurrent || isPast
-                            ? status.color
-                            : AppColors.glassBorder,
-                        width: isCurrent ? 2 : 1,
-                      ),
-                    ),
-                    child: isCurrent || isPast
-                        ? Icon(Icons.check, size: 14, color: status.color)
-                        : null,
-                  ),
-                  if (e.key < statuses.length - 1)
-                    Expanded(
-                        child: Container(
-                            height: 2,
-                            color: isPast
-                                ? AppColors.statusCompleted
-                                : AppColors.glassBorder)),
-                ]),
-                const SizedBox(height: 4),
-                Text(
-                  status.label,
-                  style: TextStyle(
-                    color: isCurrent ? status.color : AppColors.textHint,
-                    fontSize: 11,
-                    fontWeight: isCurrent ? FontWeight.w600 : FontWeight.normal,
-                  ),
-                ),
-              ],
+    return Column(
+      children: [
+        // 프로그레스 바
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: SizedBox(
+            height: 6,
+            child: LinearProgressIndicator(
+              value: currentIndex / (TaskStatus.values.length - 1),
+              backgroundColor: AppColors.border,
+              valueColor: const AlwaysStoppedAnimation(_accentColor),
             ),
           ),
-        );
-      }).toList(),
+        ),
+        const SizedBox(height: 14),
+        // 단계 버튼들
+        Row(
+          children: TaskStatus.values.asMap().entries.map((e) {
+            final status = e.value;
+            final isCurrent = e.key == currentIndex;
+            final isPast = e.key < currentIndex;
+            final isActive = isCurrent || isPast;
+
+            return Expanded(
+              child: GestureDetector(
+                onTap: !isCurrent
+                    ? () {
+                        final completedAt = status == TaskStatus.completed ? DateTime.now() : null;
+                        actions.updateTask(task.copyWith(status: status, completedAt: completedAt));
+                      }
+                    : null,
+                child: Column(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isCurrent
+                            ? _accentColor
+                            : isPast
+                                ? _accentColor.withValues(alpha: 0.2)
+                                : Colors.transparent,
+                        border: Border.all(
+                          color: isActive ? _accentColor : AppColors.border,
+                          width: isCurrent ? 2.5 : 1.5,
+                        ),
+                      ),
+                      child: Center(
+                        child: isPast && !isCurrent
+                            ? const Icon(Icons.check, size: 16, color: _accentColor)
+                            : Text(
+                                '${e.key + 1}',
+                                style: TextStyle(
+                                  color: isCurrent ? Colors.white : isActive ? _accentColor : AppColors.textHint,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      status.label,
+                      style: TextStyle(
+                        color: isCurrent ? _accentColor : isPast ? AppColors.textSecondary : AppColors.textHint,
+                        fontSize: 11,
+                        fontWeight: isCurrent ? FontWeight.w700 : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 }
