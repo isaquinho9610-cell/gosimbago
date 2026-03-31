@@ -226,25 +226,6 @@ class _TaskDetailContent extends ConsumerWidget {
             ),
           ),
 
-          // ── Daily Todo Toggle ──
-          GlassCard(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(children: [
-              const Icon(Icons.check_circle_outline,
-                  color: AppColors.lightBlue, size: 20),
-              const SizedBox(width: 12),
-              const Expanded(
-                  child: Text(AppStrings.fieldAddToDailyTodo,
-                      style: TextStyle(color: AppColors.textPrimary))),
-              Switch(
-                value: task.isDailyTodo,
-                onChanged: (_) => actions.toggleDailyTodo(task),
-                activeThumbColor: AppColors.lightBlue,
-              ),
-            ]),
-          ),
-
           // ── Activity Log ──
           GlassCard(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
