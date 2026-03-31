@@ -1,7 +1,6 @@
 import 'package:go_router/go_router.dart';
 
 import '../../presentation/screens/home/home_screen.dart';
-import '../../presentation/screens/daily_todo/daily_todo_screen.dart';
 import '../../presentation/screens/task_detail/task_detail_screen.dart';
 import '../../presentation/screens/task_form/task_form_screen.dart';
 import '../../presentation/screens/settings/settings_screen.dart';
@@ -17,10 +16,6 @@ final appRouter = GoRouter(
         GoRoute(
           path: '/home',
           pageBuilder: (context, state) => const NoTransitionPage(child: HomeScreen()),
-        ),
-        GoRoute(
-          path: '/daily',
-          pageBuilder: (context, state) => const NoTransitionPage(child: DailyTodoScreen()),
         ),
         GoRoute(
           path: '/stats',

@@ -78,6 +78,7 @@ class SupabaseService {
       'due_date': task.dueDate?.toIso8601String(),
       'is_pinned': task.isPinned,
       'is_daily_todo': task.isDailyTodo,
+      'completed_at': task.completedAt?.toIso8601String(),
       'updated_at': DateTime.now().toIso8601String(),
     }).eq('id', task.id);
   }
@@ -190,6 +191,7 @@ class SupabaseService {
       updatedAt: DateTime.parse(row['updated_at'] as String),
       isPinned: row['is_pinned'] as bool? ?? false,
       isDailyTodo: row['is_daily_todo'] as bool? ?? false,
+      completedAt: row['completed_at'] != null ? DateTime.parse(row['completed_at'] as String) : null,
     );
   }
 

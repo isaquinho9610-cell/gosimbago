@@ -12,7 +12,6 @@ class MainShell extends StatelessWidget {
 
   static const _destinations = [
     (path: '/home', icon: Icons.dashboard_outlined, label: AppStrings.navHome),
-    (path: '/daily', icon: Icons.check_circle_outline, label: AppStrings.navDailyTodo),
     (path: '/stats', icon: Icons.bar_chart_outlined, label: '통계'),
     (path: '/settings', icon: Icons.settings_outlined, label: AppStrings.navSettings),
   ];

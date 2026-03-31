@@ -15,6 +15,7 @@ class TaskModel {
     required this.updatedAt,
     this.isPinned = false,
     this.isDailyTodo = false,
+    this.completedAt,
     this.tags = const [],
   });
 
@@ -31,6 +32,7 @@ class TaskModel {
   final DateTime updatedAt;
   final bool isPinned;
   final bool isDailyTodo;
+  final DateTime? completedAt;
   final List<TagModel> tags; // 커스텀 태그
 
   /// 첫 번째 카테고리 (하위호환)
@@ -53,6 +55,7 @@ class TaskModel {
     DateTime? updatedAt,
     bool? isPinned,
     bool? isDailyTodo,
+    DateTime? completedAt,
     List<TagModel>? tags,
   }) {
     return TaskModel(
@@ -69,6 +72,7 @@ class TaskModel {
       updatedAt: updatedAt ?? this.updatedAt,
       isPinned: isPinned ?? this.isPinned,
       isDailyTodo: isDailyTodo ?? this.isDailyTodo,
+      completedAt: completedAt ?? this.completedAt,
       tags: tags ?? this.tags,
     );
   }

@@ -17,6 +17,7 @@ import '../../widgets/task_card.dart';
 
 final selectedDayProvider = StateProvider<DateTime?>((ref) => null);
 final focusedDayProvider = StateProvider<DateTime>((ref) => DateTime.now());
+final showCompletedProvider = StateProvider<bool>((ref) => false);
 
 // ── HomeScreen ────────────────────────────────────────────────────────────────
 
@@ -92,28 +93,8 @@ class HomeScreen extends ConsumerWidget {
                     ),
             ),
 
-            // ── 업무 목록 ──
-            if (tasks.isEmpty)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: _EmptyState(isFiltered: selectedDay != null),
-              )
-            else
-              SliverPadding(
-                padding: const EdgeInsets.only(bottom: 100),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, i) => TaskCard(
-                      task: tasks[i],
-                      index: i,
-                      onTap: () => context.push('/task/${tasks[i].id}'),
-                      onLongPress: () =>
-                          _showTaskOptions(context, ref, tasks[i]),
-                    ),
-                    childCount: tasks.length,
-                  ),
-                ),
-              ),
+            // ── 업무 목록 (진행중) ──
+            ..._buildTaskSections(context, ref, tasks, selectedDay != null),
           ],
         ),
         loading: () => const Center(
@@ -123,6 +104,83 @@ class HomeScreen extends ConsumerWidget {
                 Text('오류: $e', style: const TextStyle(color: Colors.white))),
       ),
     );
+  }
+
+  List<Widget> _buildTaskSections(BuildContext context, WidgetRef ref, List<TaskModel> tasks, bool isFiltered) {
+    final activeTasks = tasks.where((t) => t.status != TaskStatus.completed).toList();
+    final completedTasks = tasks.where((t) => t.status == TaskStatus.completed).toList();
+    final showCompleted = ref.watch(showCompletedProvider);
+
+    if (activeTasks.isEmpty && completedTasks.isEmpty) {
+      return [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: _EmptyState(isFiltered: isFiltered),
+        ),
+      ];
+    }
+
+    return [
+      // 진행중 업무
+      if (activeTasks.isNotEmpty)
+        SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, i) => TaskCard(
+              task: activeTasks[i],
+              index: i,
+              onTap: () => context.push('/task/${activeTasks[i].id}'),
+              onLongPress: () => _showTaskOptions(context, ref, activeTasks[i]),
+            ),
+            childCount: activeTasks.length,
+          ),
+        ),
+
+      // 완료됨 토글 헤더
+      if (completedTasks.isNotEmpty)
+        SliverToBoxAdapter(
+          child: GestureDetector(
+            onTap: () => ref.read(showCompletedProvider.notifier).state = !showCompleted,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+              child: Row(
+                children: [
+                  Icon(
+                    showCompleted ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_right,
+                    color: AppColors.textHint,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '완료됨 (${completedTasks.length})',
+                    style: const TextStyle(color: AppColors.textHint, fontSize: 13, fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+      // 완료된 업무 리스트 (토글)
+      if (completedTasks.isNotEmpty && showCompleted)
+        SliverPadding(
+          padding: const EdgeInsets.only(bottom: 100),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, i) => TaskCard(
+                task: completedTasks[i],
+                index: i,
+                onTap: () => context.push('/task/${completedTasks[i].id}'),
+                onLongPress: () => _showTaskOptions(context, ref, completedTasks[i]),
+              ),
+              childCount: completedTasks.length,
+            ),
+          ),
+        ),
+
+      // 하단 패딩 (완료 숨김일 때)
+      if (!showCompleted || completedTasks.isEmpty)
+        const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
+    ];
   }
 
   void _showTaskOptions(BuildContext context, WidgetRef ref, TaskModel task) {

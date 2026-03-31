@@ -130,7 +130,8 @@ class TaskActions {
       TaskStatus.inProgress => TaskStatus.completed,
       TaskStatus.completed => TaskStatus.completed,
     };
-    await updateTask(task.copyWith(status: nextStatus));
+    final completedAt = nextStatus == TaskStatus.completed ? DateTime.now() : task.completedAt;
+    await updateTask(task.copyWith(status: nextStatus, completedAt: completedAt));
   }
 
   Future<void> togglePin(TaskModel task) =>

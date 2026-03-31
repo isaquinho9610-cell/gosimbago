@@ -39,6 +39,8 @@ class StatsScreen extends ConsumerWidget {
                   _AgreementSubtypeBreakdown(tasks: tasks),
                   const SizedBox(height: 12),
                   _StatusDistribution(tasks: tasks),
+                  const SizedBox(height: 12),
+                  _MonthlyCompletionChart(tasks: tasks),
                   const SizedBox(height: 100),
                 ],
               ),
@@ -349,6 +351,135 @@ class _BarRow extends StatelessWidget {
               minHeight: 5,
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── 월별 완료 추이 ───────────────────────────────────────────────────────────
+
+class _MonthlyCompletionChart extends StatelessWidget {
+  const _MonthlyCompletionChart({required this.tasks});
+  final List<TaskModel> tasks;
+
+  @override
+  Widget build(BuildContext context) {
+    final completedTasks = tasks.where((t) => t.completedAt != null).toList();
+    if (completedTasks.isEmpty) return const SizedBox.shrink();
+
+    // 최근 6개월 데이터 집계
+    final now = DateTime.now();
+    final months = List.generate(6, (i) {
+      final d = DateTime(now.year, now.month - (5 - i));
+      return d;
+    });
+
+    final monthlyCounts = months.map((m) {
+      final count = completedTasks.where((t) {
+        return t.completedAt!.year == m.year && t.completedAt!.month == m.month;
+      }).length;
+      return (month: m, count: count);
+    }).toList();
+
+    final maxCount = monthlyCounts.map((m) => m.count).reduce((a, b) => a > b ? a : b);
+
+    // 카테고리별 월간 집계
+    final monthlyByCategory = months.map((m) {
+      final monthTasks = completedTasks.where((t) =>
+          t.completedAt!.year == m.year && t.completedAt!.month == m.month);
+      final Map<WorkCategory, int> catCounts = {};
+      for (final t in monthTasks) {
+        for (final c in t.categories) {
+          catCounts[c] = (catCounts[c] ?? 0) + 1;
+        }
+      }
+      return (month: m, categories: catCounts);
+    }).toList();
+
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.timeline, color: AppColors.lightBlue, size: 16),
+              SizedBox(width: 8),
+              Text('월별 완료 추이',
+                  style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 16)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text('최근 6개월간 완료된 업무량',
+              style: TextStyle(color: AppColors.textHint, fontSize: 12)),
+          const SizedBox(height: 20),
+          // 바 차트
+          SizedBox(
+            height: 120,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: monthlyCounts.map((m) {
+                final ratio = maxCount > 0 ? m.count / maxCount : 0.0;
+                final monthLabel = '${m.month.month}월';
+                return Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text('${m.count}',
+                            style: TextStyle(
+                                color: m.count > 0 ? AppColors.lightBlue : AppColors.textHint,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 4),
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          height: (ratio * 80).clamp(4.0, 80.0),
+                          decoration: BoxDecoration(
+                            color: AppColors.mediumBlue.withValues(alpha: 0.7),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(monthLabel,
+                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 10)),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Divider(color: AppColors.border),
+          const SizedBox(height: 12),
+          // 카테고리별 월간 상세
+          const Text('카테고리별 월간 완료',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+          const SizedBox(height: 8),
+          ...monthlyByCategory.where((m) => m.categories.isNotEmpty).map((m) {
+            final monthLabel = '${m.month.year}.${m.month.month.toString().padLeft(2, '0')}';
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(monthLabel,
+                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: m.categories.entries.map((e) {
+                      return Text('${e.key.label} ${e.value}건',
+                          style: TextStyle(color: e.key.color, fontSize: 11));
+                    }).toList(),
+                  ),
+                ],
+              ),
+            );
+          }),
         ],
       ),
     );
