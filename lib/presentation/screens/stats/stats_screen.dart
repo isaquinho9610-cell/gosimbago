@@ -368,10 +368,10 @@ class _MonthlyCompletionChart extends StatelessWidget {
     final completedTasks = tasks.where((t) => t.completedAt != null).toList();
     if (completedTasks.isEmpty) return const SizedBox.shrink();
 
-    // 최근 6개월 데이터 집계
+    // 최근 12개월 데이터 집계
     final now = DateTime.now();
-    final months = List.generate(6, (i) {
-      final d = DateTime(now.year, now.month - (5 - i));
+    final months = List.generate(12, (i) {
+      final d = DateTime(now.year, now.month - (11 - i));
       return d;
     });
 
@@ -410,7 +410,7 @@ class _MonthlyCompletionChart extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 4),
-          const Text('최근 6개월간 완료된 업무량',
+          const Text('최근 12개월간 완료된 업무량',
               style: TextStyle(color: AppColors.textHint, fontSize: 12)),
           const SizedBox(height: 20),
           // 바 차트
