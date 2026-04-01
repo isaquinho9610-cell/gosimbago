@@ -18,6 +18,7 @@ import '../../widgets/task_card.dart';
 final selectedDayProvider = StateProvider<DateTime?>((ref) => null);
 final focusedDayProvider = StateProvider<DateTime>((ref) => DateTime.now());
 final showCompletedProvider = StateProvider<bool>((ref) => false);
+final searchQueryProvider = StateProvider<String>((ref) => '');
 
 // ── HomeScreen ────────────────────────────────────────────────────────────────
 
@@ -29,13 +30,28 @@ class HomeScreen extends ConsumerWidget {
     final taskAsync = ref.watch(taskListProvider);
     final selectedCategory = ref.watch(selectedCategoryProvider);
     final selectedDay = ref.watch(selectedDayProvider);
+    final searchQuery = ref.watch(searchQueryProvider).toLowerCase();
 
     final filteredTasks = taskAsync.whenData((tasks) {
-      if (selectedDay == null) return tasks;
-      return tasks.where((t) {
-        if (t.dueDate == null) return false;
-        return isSameDay(t.dueDate!, selectedDay);
-      }).toList();
+      var result = tasks;
+
+      // 날짜 필터
+      if (selectedDay != null) {
+        result = result.where((t) {
+          if (t.dueDate == null) return false;
+          return isSameDay(t.dueDate!, selectedDay);
+        }).toList();
+      }
+
+      // 검색 필터
+      if (searchQuery.isNotEmpty) {
+        result = result.where((t) {
+          return t.title.toLowerCase().contains(searchQuery) ||
+              (t.description?.toLowerCase().contains(searchQuery) ?? false);
+        }).toList();
+      }
+
+      return result;
     });
 
     return GlassScaffold(
@@ -71,6 +87,9 @@ class HomeScreen extends ConsumerWidget {
                 error: (_, __) => const SizedBox.shrink(),
               ),
             ),
+
+            // ── 검색 ──
+            SliverToBoxAdapter(child: _SearchBar()),
 
             // ── 카테고리 필터 또는 날짜 헤더 ──
             SliverToBoxAdapter(
@@ -483,6 +502,70 @@ class _FilterChip extends StatelessWidget {
                     isSelected ? FontWeight.w600 : FontWeight.normal,
               )),
         ),
+      ),
+    );
+  }
+}
+
+// ── Empty State ───────────────────────────────────────────────────────────────
+
+// ── Search Bar ────────────────────────────────────────────────────────────────
+
+class _SearchBar extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_SearchBar> createState() => _SearchBarState();
+}
+
+class _SearchBarState extends ConsumerState<_SearchBar> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+      child: TextField(
+        controller: _controller,
+        style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+        decoration: InputDecoration(
+          hintText: '업무 검색...',
+          hintStyle: const TextStyle(color: AppColors.textHint, fontSize: 13),
+          prefixIcon: const Icon(Icons.search, color: AppColors.textHint, size: 18),
+          suffixIcon: _controller.text.isNotEmpty
+              ? GestureDetector(
+                  onTap: () {
+                    _controller.clear();
+                    ref.read(searchQueryProvider.notifier).state = '';
+                  },
+                  child: const Icon(Icons.close, color: AppColors.textHint, size: 16),
+                )
+              : null,
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(vertical: 10),
+          filled: true,
+          fillColor: AppColors.bgElevated,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.border),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.border),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.mediumBlue),
+          ),
+        ),
+        onChanged: (v) {
+          setState(() {});
+          ref.read(searchQueryProvider.notifier).state = v;
+        },
       ),
     );
   }

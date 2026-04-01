@@ -83,7 +83,7 @@ class TaskActions {
 
   void _refresh() => refreshDataFromRef(_ref);
 
-  Future<void> createTask({
+  Future<String> createTask({
     required String title,
     String? description,
     required List<WorkCategory> categories,
@@ -96,8 +96,9 @@ class TaskActions {
     List<TagModel> tags = const [],
   }) async {
     final now = DateTime.now();
+    final id = _uuid.v4();
     await _service.insertTask(TaskModel(
-      id: _uuid.v4(),
+      id: id,
       title: title,
       description: description,
       categories: categories,
@@ -112,6 +113,7 @@ class TaskActions {
       tags: tags,
     ));
     _refresh();
+    return id;
   }
 
   Future<void> updateTask(TaskModel task) async {

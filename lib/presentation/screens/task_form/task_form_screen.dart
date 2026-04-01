@@ -99,7 +99,7 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
           isDailyTodo: _isDailyTodo,
         ));
       } else {
-        await actions.createTask(
+        final newId = await actions.createTask(
           title: _titleController.text.trim(),
           description: _descController.text.trim().isEmpty ? null : _descController.text.trim(),
           categories: _categories.toList(),
@@ -110,6 +110,9 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
           dueDate: _dueDate,
           isDailyTodo: _isDailyTodo,
         );
+        // 생성 후 바로 상세페이지로 이동 (체크리스트/로그 추가 가능)
+        if (mounted) context.go('/task/$newId');
+        return;
       }
       if (mounted) context.pop();
     } finally {
